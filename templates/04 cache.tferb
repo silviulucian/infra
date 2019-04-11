@@ -1,0 +1,27 @@
+#
+# This file defines Elastic Cache clusters
+
+#
+# Elastic Cache clusters
+###############################################################################
+
+<% CONFIG.fetch('elastic-cache', []).each_with_index do |cache,index| %>
+  # https://www.terraform.io/docs/providers/aws/r/elasticache_cluster.html
+  resource "aws_elasticache_cluster" "<%= cache['name'] %>" {
+    cluster_id           = "<%= cache['name'] %>"
+    engine               = "<%= cache['engine'] %>"
+    engine_version       = "<%= cache['version'] %>"
+    parameter_group_name = "<%= "default.#{cache['engine']}#{cache['version'][0, 3]}"  %>"
+    apply_immediately    = true
+
+    node_type          = "<%= cache['instance-type'] %>"
+    num_cache_nodes    = 1
+    subnet_group_name  = "<%= CONFIG['name'] %>-cache-subnet-grp"
+    security_group_ids = ["${aws_security_group.cache-sg.id}"]
+
+    tags {
+      Project = "<%= CONFIG['name'] %>"
+      Name    = "<%= "#{CONFIG['name']}-#{cache['engine']}-#{cache['name']}" %>"
+    }
+  }
+<% end %>

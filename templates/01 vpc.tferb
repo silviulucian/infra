@@ -1,0 +1,235 @@
+#
+# This file defines the Virtual Private Cloud and related resources:
+# subnets, gateways, routing tables, security groups, etc.
+
+#
+# VPC
+###############################################################################
+
+# https://www.terraform.io/docs/providers/aws/d/vpc.html
+resource "aws_vpc" "vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  enable_dns_hostnames = true
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-vpc"
+  }
+}
+
+#
+# Subnets
+###############################################################################
+
+#
+# Define public subnets and respective Internet Gateway and Routing Table;
+# we'll use these for resources that need to be accessible from the Internet
+
+locals {
+  availability_zones = ["<%= CONFIG['region'] %>a", "<%= CONFIG['region'] %>b", "<%= CONFIG['region'] %>c"]
+}
+
+# https://www.terraform.io/docs/providers/aws/r/subnet.html
+resource "aws_subnet" "pub-subnet" {
+  count             = "${length(local.availability_zones)}"
+  vpc_id            = "${aws_vpc.vpc.id}"
+  cidr_block        = "10.0.${count.index + 1}.0/24"
+  availability_zone = "${element(local.availability_zones, count.index)}"
+
+  map_public_ip_on_launch = true
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-pub-subnet-${element(local.availability_zones, count.index)}"
+  }
+}
+
+# https://www.terraform.io/docs/providers/aws/r/internet_gateway.html
+resource "aws_internet_gateway" "igw" {
+  vpc_id = "${aws_vpc.vpc.id}"
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-igw"
+  }
+}
+
+# https://www.terraform.io/docs/providers/aws/r/route_table.html
+resource "aws_route_table" "pub-rt" {
+  vpc_id = "${aws_vpc.vpc.id}"
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "${aws_internet_gateway.igw.id}"
+  }
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-pub-rt"
+  }
+}
+
+# https://www.terraform.io/docs/providers/aws/r/route_table_association.html
+resource "aws_route_table_association" "pub-rt" {
+  count          = "${length(local.availability_zones)}"
+  subnet_id      = "${element(aws_subnet.pub-subnet.*.id, count.index)}"
+  route_table_id = "${aws_route_table.pub-rt.id}"
+}
+
+#
+# Define private subnet for things we don't want to be accessible online
+
+# https://www.terraform.io/docs/providers/aws/d/subnet.html
+resource "aws_subnet" "priv-subnet" {
+  count             = "${length(local.availability_zones)}"
+  vpc_id            = "${aws_vpc.vpc.id}"
+  cidr_block        = "10.0.${count.index + length(local.availability_zones) + 1}.0/24"
+  availability_zone = "${element(local.availability_zones, count.index)}"
+
+  map_public_ip_on_launch = true
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-priv-subnet-${element(local.availability_zones, count.index)}"
+  }
+}
+
+# https://www.terraform.io/docs/providers/aws/r/db_subnet_group.html
+resource "aws_db_subnet_group" "db-subnet-grp" {
+  name       = "<%= CONFIG['name'] %>-db-subnet-grp"
+  subnet_ids = ["${aws_subnet.priv-subnet.*.id}"]
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-db-subnet-grp"
+  }
+}
+
+# https://www.terraform.io/docs/providers/aws/r/elasticache_subnet_group.html
+resource "aws_elasticache_subnet_group" "cache-subnet-grp" {
+  name       = "<%= CONFIG['name'] %>-cache-subnet-grp"
+  subnet_ids = ["${aws_subnet.priv-subnet.*.id}"]
+}
+
+#
+# Security Groups
+###############################################################################
+
+#
+# This Security Group allows HTTP/HTTPS connections from anywhere
+
+# https://www.terraform.io/docs/providers/aws/r/security_group.html
+resource "aws_security_group" "web-sg" {
+  vpc_id      = "${aws_vpc.vpc.id}"
+  name        = "<%= CONFIG['name'] %>-web-sg"
+  description = "Allow incoming HTTP/HTTPS traffic from the Internet"
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-web-sg"
+  }
+}
+
+#
+# This Security Group allows MySQL connections only from inside the VPC
+
+# https://www.terraform.io/docs/providers/aws/r/security_group.html
+resource "aws_security_group" "db-sg"{
+  vpc_id      = "${aws_vpc.vpc.id}"
+  name        = "<%= CONFIG['name'] %>-db-sg"
+  description = "Allow MySQL traffic only from inside the VPC"
+
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = [
+      "${aws_subnet.pub-subnet.*.cidr_block}",
+      "${aws_subnet.priv-subnet.*.cidr_block}"
+    ]
+  }
+
+  ingress {
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = [
+      "${aws_subnet.pub-subnet.*.cidr_block}",
+      "${aws_subnet.priv-subnet.*.cidr_block}"
+    ]
+  }
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-db-sg"
+  }
+}
+
+#
+# This Security Group allows cache connections only from inside the VPC
+
+# https://www.terraform.io/docs/providers/aws/r/security_group.html
+resource "aws_security_group" "cache-sg"{
+  vpc_id      = "${aws_vpc.vpc.id}"
+  name        = "<%= CONFIG['name'] %>-cache-sg"
+  description = "Allow Redis/Memcached traffic only from inside the VPC"
+
+  # Redis
+  ingress {
+    from_port   = 11211
+    to_port     = 11211
+    protocol    = "tcp"
+    cidr_blocks = [
+      "${aws_subnet.pub-subnet.*.cidr_block}",
+      "${aws_subnet.priv-subnet.*.cidr_block}"
+    ]
+  }
+
+  # Memcached
+  ingress {
+    from_port   = 11211
+    to_port     = 11211
+    protocol    = "tcp"
+    cidr_blocks = [
+      "${aws_subnet.pub-subnet.*.cidr_block}",
+      "${aws_subnet.priv-subnet.*.cidr_block}"
+    ]
+  }
+
+  ingress {
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = [
+      "${aws_subnet.pub-subnet.*.cidr_block}",
+      "${aws_subnet.priv-subnet.*.cidr_block}"
+    ]
+  }
+
+  tags {
+    Project = "<%= CONFIG['name'] %>"
+    Name    = "<%= CONFIG['name'] %>-cache-sg"
+  }
+}

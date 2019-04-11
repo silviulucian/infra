@@ -1,0 +1,27 @@
+#
+# This file defines the region we're going to use as well as the S3 bucket
+# that's going to hold all our Terraform artifacts
+
+#
+# Region
+###############################################################################
+
+provider "aws" {
+  region = "<%= CONFIG['region'] %>"
+}
+
+#
+# Artifact store
+###############################################################################
+
+# https://www.terraform.io/docs/backends/config.html
+terraform {
+  required_version = "~> 0.11"
+
+  # https://www.terraform.io/docs/backends/types/s3.html
+  backend "s3" {
+    region = "<%= CONFIG['region'] %>"
+    bucket = "<%= CONFIG['artifacts-bucket'] %>"
+    key    = "terraform.tfstate"
+  }
+}
