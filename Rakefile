@@ -1,5 +1,6 @@
 require 'erb'
 require 'yaml'
+require './template_helpers.rb'
 
 #
 # Config and vars

@@ -7,7 +7,7 @@
 
 <% CONFIG.fetch('elastic-cache', []).each_with_index do |cache,index| %>
   # https://www.terraform.io/docs/providers/aws/r/elasticache_cluster.html
-  resource "aws_elasticache_cluster" "<%= cache['name'] %>" {
+  resource "aws_elasticache_cluster" "<%= cache['name'].resourceify %>" {
     cluster_id           = "<%= cache['name'] %>"
     engine               = "<%= cache['engine'] %>"
     engine_version       = "<%= cache['version'] %>"

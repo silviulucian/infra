@@ -3,7 +3,7 @@
 
 <% CONFIG.fetch('cloud9', []).each_with_index do |c9,index| %>
   # https://www.terraform.io/docs/providers/aws/r/cloud9_environment_ec2.html
-  resource "aws_cloud9_environment_ec2" "<%= c9['name'] %>" {
+  resource "aws_cloud9_environment_ec2" "<%= c9['name'].resourceify %>" {
     name          = "<%= c9['name'] %>"
     instance_type = "<%= c9['instance-type'] %>"
     subnet_id     = "${aws_subnet.pub-subnet.0.id}"

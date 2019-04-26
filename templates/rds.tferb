@@ -2,29 +2,31 @@
 # This file defines RDS instances
 
 #
-# Role required for RDS Enhanced Monitoring
+# Role and policy required for RDS Enhanced Monitoring
 ###############################################################################
 
 # IAM Role Definition for RDS Enhanced Monitoring
-# https://www.terraform.io/docs/providers/aws/d/iam_policy_document.html
-data "aws_iam_policy_document" "rds-assume-role-policy" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["monitoring.rds.amazonaws.com"]
-    }
-  }
-}
-
-# Create RDS Enhanced Monitoring role
 # https://www.terraform.io/docs/providers/aws/r/iam_role.html
 resource "aws_iam_role" "rds-monitoring-role" {
-  name = "<%= CONFIG['name'] %>-role-all-rds-monitor"
+  name = "<%= CONFIG['name'] %>-role-rds-monitor"
   path = "/"
 
-  assume_role_policy = "${data.aws_iam_policy_document.rds-assume-role-policy.json}"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Principal": {
+        "Service": "monitoring.rds.amazonaws.com"
+      },
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
 }
 
 # Attach RDS Enhanced Monitoring role policy(ies)
@@ -40,7 +42,7 @@ resource "aws_iam_role_policy_attachment" "rds-monitoring-role" {
 
 <% CONFIG.fetch('rds', []).each_with_index do |rds,index| %>
   # https://www.terraform.io/docs/providers/aws/r/db_instance.html
-  resource "aws_db_instance" "<%= rds['name'] %>" {
+  resource "aws_db_instance" "<%= rds['name'].resourceify %>" {
     identifier           = "<%= rds['name'] %>"
     engine               = "<%= rds['engine'] %>"
     engine_version       = "<%= rds['version'] %>"
@@ -51,7 +53,7 @@ resource "aws_iam_role_policy_attachment" "rds-monitoring-role" {
     apply_immediately          = true
     deletion_protection        = true
     auto_minor_version_upgrade = true
-    monitoring_interval        = 1 #https://www.terraform.io/docs/providers/aws/r/db_instance.html#monitoring_interval
+    monitoring_interval        = 1 # https://www.terraform.io/docs/providers/aws/r/db_instance.html#monitoring_interval
     monitoring_role_arn        = "${aws_iam_role.rds-monitoring-role.arn}"
     backup_retention_period    = 14
     copy_tags_to_snapshot      = true

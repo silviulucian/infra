@@ -10,8 +10,6 @@ resource "aws_sns_topic" "sns-billing-topic" {
   name = "<%= CONFIG['name'] %>-billing-topic"
 }
 
-<% puts CONFIG.fetch('billing-alarms', {'subscriptions': []}).inspect %>
-
 <% CONFIG.fetch('billing-alarms', {'subscriptions' => []})['subscriptions'].each_with_index do |endpoint,index| %>
   # https://www.terraform.io/docs/providers/aws/r/sns_topic_subscription.html
   resource "aws_sns_topic_subscription" "billing-subscription-<%= index %>" {
