@@ -26,8 +26,8 @@ resource "aws_sns_topic" "sns-billing-topic" {
 <% CONFIG.fetch('billing-alarms', {'thresholds' => []})['thresholds'].each_with_index do |threshold,index| %>
   # https://www.terraform.io/docs/providers/aws/r/budgets_budget.html
   resource "aws_budgets_budget" "budget-threshold-alarm-<%= index %>" {
-    name              = "<%= CONFIG['name'] %>-budget-threshold-alarm-<%= threshold %>"
-    limit_amount      = "<%= threshold %>"
+    name              = "<%= CONFIG['name'] %>-budget-threshold-alarm-<%= threshold.to_s.resourceify %>"
+    limit_amount      = "<%= threshold.to_f %>"
     limit_unit        = "USD"
     budget_type       = "COST"
     time_period_start = "2019-01-01_00:00"
