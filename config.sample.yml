@@ -21,7 +21,6 @@ billing-alarms:
 cloud9:
   - name: myproject
     instance-type: t3.small # Use any EC2 instance type you'd like
-    shutdown-minutes: 48 # Number of minutes after idle to put the instance to sleep
 
 rds:
   - name: mydb
@@ -41,7 +40,7 @@ elastic-cache:
 
 s3:
   - name: mybucket
-    acl: private # Use either `public` or `private`
+    acl: private # https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl
 
 cloud-front:
   - name: mycdn

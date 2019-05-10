@@ -8,6 +8,6 @@
     instance_type = "<%= c9['instance-type'] %>"
     subnet_id     = "${aws_subnet.pub-subnet.0.id}"
 
-    automatic_stop_time_minutes = <%= c9['shutdown-minutes'] %>
+    automatic_stop_time_minutes = 30
   }
 <% end %>
