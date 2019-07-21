@@ -9,7 +9,7 @@ require './template_helpers.rb'
 CONFIG         = YAML.load_file("config.yml")
 TEMPLATE_DIR   = "templates"
 TERRAFORM_DIR  = "templates/.tf"
-TEMPLATE_FILES = Rake::FileList.new("#{TEMPLATE_DIR}/**/*.tferb") do |tf|
+TEMPLATE_FILES = Rake::FileList.new("#{TEMPLATE_DIR}/**/*.tf.erb") do |tf|
   # Files to exclude
   [
     "~*",

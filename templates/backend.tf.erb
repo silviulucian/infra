@@ -7,13 +7,15 @@
 # Region & artifact store
 ###############################################################################
 
+# https://www.terraform.io/docs/providers/index.html
 provider "aws" {
-  region = "<%= CONFIG['region'] %>"
+  version = "~> 2.8"
+  region  = "<%= CONFIG['region'] %>"
 }
 
 # https://www.terraform.io/docs/backends/config.html
 terraform {
-  required_version = "~> 0.11"
+  required_version = "~> 0.12"
 
   # https://www.terraform.io/docs/backends/types/s3.html
   backend "s3" {
@@ -24,7 +26,7 @@ terraform {
 }
 
 #
-# Account info
+# Output account and config info
 ###############################################################################
 
 data "aws_caller_identity" "current" {

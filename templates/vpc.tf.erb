@@ -12,7 +12,7 @@ resource "aws_vpc" "vpc" {
 
   enable_dns_hostnames = true
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-vpc"
   }
@@ -39,7 +39,7 @@ resource "aws_subnet" "pub-subnet" {
 
   map_public_ip_on_launch = true
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-pub-subnet-${element(local.availability_zones, count.index)}"
   }
@@ -49,7 +49,7 @@ resource "aws_subnet" "pub-subnet" {
 resource "aws_internet_gateway" "igw" {
   vpc_id = "${aws_vpc.vpc.id}"
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-igw"
   }
@@ -64,7 +64,7 @@ resource "aws_route_table" "pub-rt" {
     gateway_id = "${aws_internet_gateway.igw.id}"
   }
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-pub-rt"
   }
@@ -89,7 +89,7 @@ resource "aws_subnet" "priv-subnet" {
 
   map_public_ip_on_launch = true
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-priv-subnet-${element(local.availability_zones, count.index)}"
   }
@@ -98,9 +98,9 @@ resource "aws_subnet" "priv-subnet" {
 # https://www.terraform.io/docs/providers/aws/r/db_subnet_group.html
 resource "aws_db_subnet_group" "db-subnet-grp" {
   name       = "<%= CONFIG['name'] %>-db-subnet-grp"
-  subnet_ids = ["${aws_subnet.priv-subnet.*.id}"]
+  subnet_ids = aws_subnet.priv-subnet.*.id
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-db-subnet-grp"
   }
@@ -109,7 +109,7 @@ resource "aws_db_subnet_group" "db-subnet-grp" {
 # https://www.terraform.io/docs/providers/aws/r/elasticache_subnet_group.html
 resource "aws_elasticache_subnet_group" "cache-subnet-grp" {
   name       = "<%= CONFIG['name'] %>-cache-subnet-grp"
-  subnet_ids = ["${aws_subnet.priv-subnet.*.id}"]
+  subnet_ids = aws_subnet.priv-subnet.*.id
 }
 
 #
@@ -146,7 +146,7 @@ resource "aws_security_group" "web-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-web-sg"
   }
@@ -165,23 +165,23 @@ resource "aws_security_group" "db-sg"{
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = [
-      "${aws_subnet.pub-subnet.*.cidr_block}",
-      "${aws_subnet.priv-subnet.*.cidr_block}"
-    ]
+    cidr_blocks = flatten([
+      aws_subnet.pub-subnet.*.cidr_block,
+      aws_subnet.priv-subnet.*.cidr_block
+    ])
   }
 
   ingress {
     from_port   = -1
     to_port     = -1
     protocol    = "icmp"
-    cidr_blocks = [
-      "${aws_subnet.pub-subnet.*.cidr_block}",
-      "${aws_subnet.priv-subnet.*.cidr_block}"
-    ]
+    cidr_blocks = flatten([
+      aws_subnet.pub-subnet.*.cidr_block,
+      aws_subnet.priv-subnet.*.cidr_block
+    ])
   }
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-db-sg"
   }
@@ -201,10 +201,10 @@ resource "aws_security_group" "cache-sg"{
     from_port   = 11211
     to_port     = 11211
     protocol    = "tcp"
-    cidr_blocks = [
-      "${aws_subnet.pub-subnet.*.cidr_block}",
-      "${aws_subnet.priv-subnet.*.cidr_block}"
-    ]
+    cidr_blocks = flatten([
+      aws_subnet.pub-subnet.*.cidr_block,
+      aws_subnet.priv-subnet.*.cidr_block
+    ])
   }
 
   # Memcached
@@ -212,23 +212,23 @@ resource "aws_security_group" "cache-sg"{
     from_port   = 11211
     to_port     = 11211
     protocol    = "tcp"
-    cidr_blocks = [
-      "${aws_subnet.pub-subnet.*.cidr_block}",
-      "${aws_subnet.priv-subnet.*.cidr_block}"
-    ]
+    cidr_blocks = flatten([
+      aws_subnet.pub-subnet.*.cidr_block,
+      aws_subnet.priv-subnet.*.cidr_block
+    ])
   }
 
   ingress {
     from_port   = -1
     to_port     = -1
     protocol    = "icmp"
-    cidr_blocks = [
-      "${aws_subnet.pub-subnet.*.cidr_block}",
-      "${aws_subnet.priv-subnet.*.cidr_block}"
-    ]
+    cidr_blocks = flatten([
+      aws_subnet.pub-subnet.*.cidr_block,
+      aws_subnet.priv-subnet.*.cidr_block
+    ])
   }
 
-  tags {
+  tags = {
     Project = "<%= CONFIG['name'] %>"
     Name    = "<%= CONFIG['name'] %>-cache-sg"
   }

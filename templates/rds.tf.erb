@@ -78,7 +78,7 @@ resource "aws_iam_role_policy_attachment" "rds-monitoring-role" {
     db_subnet_group_name   = "<%= CONFIG['name'] %>-db-subnet-grp"
     vpc_security_group_ids = ["${aws_security_group.db-sg.id}"]
 
-    tags {
+    tags = {
       Project = "<%= CONFIG['name'] %>"
       Name    = "<%= "#{CONFIG['name']}-#{rds['engine']}-#{rds['name']}" %>"
     }

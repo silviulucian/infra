@@ -144,7 +144,7 @@ EOF
     name     = "<%= pipeline['name'] %>"
     role_arn = "${aws_iam_role.codepipeline-role.arn}"
 
-    artifact_store = {
+    artifact_store {
       location = "<%= CONFIG['artifacts-bucket'] %>"
       type     = "S3"
     }
@@ -168,7 +168,7 @@ EOF
         output_artifacts = ["code"]
 
         # https://www.terraform.io/docs/providers/aws/r/codepipeline.html#configuration
-        configuration {
+        configuration = {
           # https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-pipeline-structure.html#structure-configuration-examples
           PollForSourceChanges = "true"
           RepositoryName       = "<%= pipeline['repository'] %>"
@@ -196,7 +196,7 @@ EOF
         input_artifacts  = ["code"]
         output_artifacts = ["build"]
 
-        configuration {
+        configuration = {
           ProjectName = "<%= pipeline['name'].resourceify %>-build"
         }
       }
@@ -216,7 +216,7 @@ EOF
         input_artifacts  = ["build"]
         output_artifacts = ["tested"]
 
-        configuration {
+        configuration = {
           ProjectName = "<%= pipeline['name'].resourceify %>-test"
         }
       }
@@ -236,7 +236,7 @@ EOF
         input_artifacts  = ["build"]
         output_artifacts = ["deployed"]
 
-        configuration {
+        configuration = {
           ProjectName = "<%= pipeline['name'].resourceify %>-deploy"
         }
       }

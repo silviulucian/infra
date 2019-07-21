@@ -19,7 +19,7 @@
     subnet_group_name  = "<%= CONFIG['name'] %>-cache-subnet-grp"
     security_group_ids = ["${aws_security_group.cache-sg.id}"]
 
-    tags {
+    tags = {
       Project = "<%= CONFIG['name'] %>"
       Name    = "<%= "#{CONFIG['name']}-#{cache['engine']}-#{cache['name']}" %>"
     }
