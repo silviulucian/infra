@@ -3,6 +3,7 @@
 # Edit at https://www.goitignore.io/?templates=node,rails,linux,macos,cloud9,windows,terraform,serverless,sublimetext,intellij+all,visualstudiocode
 
 ### Project ###
+.envrc
 config.yml
 templates/.tf
 
