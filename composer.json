@@ -1,0 +1,41 @@
+{
+  "name": "silviulucian/infra",
+  "type": "project",
+  "description": "Premade, easily configurable Terraform templates.",
+  "license": "MIT",
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "autoload": {
+    "psr-4": {
+      "silviulucian\\infra\\": "scripts"
+    }
+  },
+  "require": {
+    "ext-yaml": "^2.0",
+    "mustache/mustache": "~2.5"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-master"
+  },
+  "scripts": {
+    "rebuild": [
+      "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Terraform::fmt"
+    ],
+    "plan": [
+      "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Terraform::fmt",
+      "silviulucian\\infra\\Terraform::init",
+      "silviulucian\\infra\\Terraform::plan"
+    ],
+    "apply": [
+      "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Terraform::fmt",
+      "silviulucian\\infra\\Terraform::init",
+      "silviulucian\\infra\\Terraform::apply"
+    ]
+  }
+}

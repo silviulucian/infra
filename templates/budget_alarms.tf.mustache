@@ -1,0 +1,37 @@
+#
+# This file defines billing alarms, related SNS topic and subscriptions
+
+#
+# Billing threshold alarms
+#------------------------------------------------------------------------------
+
+{{#budget_alarms.thresholds}}
+    # https://www.terraform.io/docs/providers/aws/r/budgets_budget.html
+    resource "aws_budgets_budget" "budget-alarm-{{#tfmspecialchars}}{{.}}{{/tfmspecialchars}}" {
+        name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-budget-alarm-{{#tfmspecialchars}}{{.}}{{/tfmspecialchars}}"
+
+        limit_amount      = "{{.}}"
+        limit_unit        = "{{budget_alarms.unit}}"
+        budget_type       = "{{budget_alarms.type}}"
+        time_unit         = "MONTHLY"
+        time_period_start = "2019-01-01_00:00"
+    }
+{{/budget_alarms.thresholds}}
+
+#
+# SNS topic and subscriptions
+#------------------------------------------------------------------------------
+
+# https://www.terraform.io/docs/providers/aws/r/sns_topic.html
+resource "aws_sns_topic" "budget-alarm" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-budget-alarm-topic"
+}
+
+{{#budget_alarms.endpoints}}
+    # https://www.terraform.io/docs/providers/aws/r/sns_topic_subscription.html
+    resource "aws_sns_topic_subscription" "subscription-{{#tfmspecialchars}}{{.}}{{/tfmspecialchars}}" {
+        topic_arn = aws_sns_topic.budget-alarm.arn
+        protocol  = "sms"
+        endpoint  = "{{.}}"
+    }
+{{/budget_alarms.endpoints}}

@@ -1,0 +1,10 @@
+#
+# This file defines S3 buckets, including the ones needed for orchestrations
+
+{{#s3}}
+    # https://www.terraform.io/docs/providers/aws/r/s3_bucket.html
+    resource "aws_s3_bucket" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}" {
+        bucket = "{{name}}"
+        acl    = "{{acl}}"
+    }
+{{/s3}}

@@ -1,0 +1,13 @@
+#
+# This file defines Cloud9 environments
+
+{{#cloud9}}
+    # https://www.terraform.io/docs/providers/aws/r/cloud9_environment_ec2.html
+    resource "aws_cloud9_environment_ec2" "c9-{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}" {
+        name          = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}"
+        instance_type = "{{instance_type}}"
+        subnet_id     = "${aws_subnet.pub-subnet.0.id}"
+
+        automatic_stop_time_minutes = 30
+    }
+{{/cloud9}}

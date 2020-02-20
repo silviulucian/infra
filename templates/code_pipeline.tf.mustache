@@ -1,0 +1,305 @@
+#
+# This file defines CodePipeline, well, pipelines
+
+#
+# Role and policy required by CodePipeline
+#------------------------------------------------------------------------------
+
+# https://www.terraform.io/docs/providers/aws/r/iam_role.html
+resource "aws_iam_role" "codepipeline-role" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-codepipeline-role"
+
+    assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Principal": {
+                "Service": "codepipeline.amazonaws.com"
+            },
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+}
+
+# https://www.terraform.io/docs/providers/aws/r/iam_role_policy.html
+resource "aws_iam_role_policy" "codepipeline-policy" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-codepipeline-policy"
+    role = aws_iam_role.codepipeline-role.id
+
+    policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "codecommit:GetBranch",
+                "codecommit:GetCommit",
+                "codecommit:UploadArchive",
+                "codecommit:GetUploadArchiveStatus",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:GetBucketVersioning",
+                "s3:PutObject",
+                "iam:PassRole",
+                "codebuild:BatchGetBuilds",
+                "codebuild:StartBuild",
+                "sns:*",
+                "sqs:*",
+                "cloudwach:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+}
+
+#
+# Role and policy required by CodeBuild
+#------------------------------------------------------------------------------
+
+# https://www.terraform.io/docs/providers/aws/r/iam_role.html
+resource "aws_iam_role" "codebuild-role" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-codebuild-role"
+
+    assume_role_policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Principal": {
+                "Service": "codebuild.amazonaws.com"
+            },
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+}
+
+# https://www.terraform.io/docs/providers/aws/r/iam_role_policy.html
+resource "aws_iam_role_policy" "codebuild-policy" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-codebuild-policy"
+    role = aws_iam_role.codebuild-role.id
+
+    policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "s3:ListBucket",
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:GetBucketVersioning",
+                "s3:DeleteObject",
+                "cloudfront:CreateInvalidation",
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "codebuild:*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+}
+
+#
+# CodePipeline setups
+#------------------------------------------------------------------------------
+
+{{#code_pipeline}}
+    # https://www.terraform.io/docs/providers/aws/r/codepipeline.html
+    resource "aws_codepipeline" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}" {
+        name     = "{{name}}"
+        role_arn = aws_iam_role.codepipeline-role.arn
+
+        artifact_store {
+            location = "{{artifacts_bucket}}"
+            type     = "S3"
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/codepipeline.html#stage
+        stage {
+            name = "SourceStage"
+
+            # https://www.terraform.io/docs/providers/aws/r/codepipeline.html#action
+            action {
+                name    = "SourceAction"
+                version = "1"
+
+                category = "Source"     # Source, Test, Build, Approval, Deploy, Invoke
+                owner    = "AWS"        # AWS, Custom or ThirdParty
+                provider = "CodeCommit" # https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-pipeline-structure.html#actions-valid-providers
+
+                # owner    = "ThirdParty"
+                # provider = "GitHub"
+
+                output_artifacts = ["code"]
+
+                # https://www.terraform.io/docs/providers/aws/r/codepipeline.html#configuration
+                configuration = {
+                    # https://docs.aws.amazon.com/codepipeline/latest/userguide/reference-pipeline-structure.html#structure-configuration-examples
+                    PollForSourceChanges = "true"
+                    RepositoryName       = "{{repository}}"
+                    BranchName           = "{{branch}}"
+
+                    # Owner              = "${var.github_username}"
+                    # OAuthToken         = "${var.github_token}"
+                    # Repo               = "${var.github_repo}"
+                    # Branch             = "${var.github_branch}"
+                }
+            }
+        }
+
+        stage {
+            name = "BuildStage"
+
+            action {
+                name    = "BuildAction"
+                version = "1"
+
+                category = "Build"
+                owner    = "AWS"
+                provider = "CodeBuild"
+
+                input_artifacts  = ["code"]
+                output_artifacts = ["build"]
+
+                configuration = {
+                    ProjectName = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-build"
+                }
+            }
+        }
+
+        stage {
+            name = "TestStage"
+
+            action {
+                name    = "TestAction"
+                version = "1"
+
+                category = "Test"
+                owner    = "AWS"
+                provider = "CodeBuild"
+
+                input_artifacts  = ["build"]
+                output_artifacts = ["tested"]
+
+                configuration = {
+                    ProjectName = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-test"
+                }
+            }
+        }
+
+        stage {
+            name = "DeployStage"
+
+            action {
+                name    = "DeployAction"
+                version = "1"
+
+                category = "Test" # Category 'Deploy' doesn't support the CodeBuild provider
+                owner    = "AWS"
+                provider = "CodeBuild"
+
+                input_artifacts  = ["build"]
+                output_artifacts = ["deployed"]
+
+                configuration = {
+                    ProjectName = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-deploy"
+                }
+            }
+        }
+    }
+
+    # https://www.terraform.io/docs/providers/aws/r/codebuild_project.html
+    resource "aws_codebuild_project" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-test" {
+        name          = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-test"
+        build_timeout = "30" # minutes, testing can take a long time
+        service_role  = aws_iam_role.codebuild-role.arn
+
+        # https://www.terraform.io/docs/providers/aws/r/codebuild_project.html#artifacts
+        artifacts {
+            type = "CODEPIPELINE"
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/codebuild_project.html#environment
+        environment {
+            type  = "LINUX_CONTAINER"            # LINUX_CONTAINER or WINDOWS_CONTAINER
+            image = "aws/codebuild/standard:1.0" # https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
+
+            # https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-compute-types.html
+            compute_type = "BUILD_GENERAL1_SMALL" # BUILD_GENERAL1_SMALL, BUILD_GENERAL1_MEDIUM or BUILD_GENERAL1_LARGE
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/codebuild_project.html#source
+        source {
+            type      = "CODEPIPELINE"
+            buildspec = "testspec.yml"
+        }
+    }
+
+    resource "aws_codebuild_project" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-build" {
+        name          = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-build"
+        build_timeout = "30"
+        service_role  = aws_iam_role.codebuild-role.arn
+
+        artifacts {
+            type = "CODEPIPELINE"
+        }
+
+        environment {
+            type  = "LINUX_CONTAINER"
+            image = "aws/codebuild/standard:1.0"
+
+            compute_type = "BUILD_GENERAL1_SMALL"
+        }
+
+        source {
+            type      = "CODEPIPELINE"
+            buildspec = "buildspec.yml"
+        }
+    }
+
+    resource "aws_codebuild_project" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-deploy" {
+        name          = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-deploy"
+        build_timeout = "30"
+        service_role  = aws_iam_role.codebuild-role.arn
+
+        artifacts {
+            type = "CODEPIPELINE"
+        }
+
+        environment {
+            type  = "LINUX_CONTAINER"
+            image = "aws/codebuild/standard:1.0"
+
+            compute_type = "BUILD_GENERAL1_SMALL"
+
+            {{#env}}
+                environment_variable {
+                  name  = "{{variable}}"
+                  value = {{&value}}
+                }
+            {{/env}}
+        }
+
+        source {
+            type      = "CODEPIPELINE"
+            buildspec = "deployspec.yml"
+        }
+    }
+{{/code_pipeline}}

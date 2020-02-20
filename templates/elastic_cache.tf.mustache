@@ -1,0 +1,27 @@
+#
+# This file defines Elastic Cache clusters
+
+#
+# Elastic Cache clusters
+#------------------------------------------------------------------------------
+
+{{#elastic_cache}}
+    # https://www.terraform.io/docs/providers/aws/r/elasticache_cluster.html
+    resource "aws_elasticache_cluster" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}" {
+        cluster_id           = "{{name}}"
+        engine               = "{{engine}}"
+        engine_version       = "{{version}}"
+        parameter_group_name = "{{parameter_group}}"
+        apply_immediately    = true
+
+        node_type          = "{{instance_type}}"
+        num_cache_nodes    = 1
+        subnet_group_name  = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-cache-subnet-grp"
+        security_group_ids = ["${aws_security_group.cache-sg.id}"]
+
+        tags = {
+            Project = "{{project_name}}"
+            Name    = "{{#tfmspecialchars}}{{name}}-{{engine}}{{/tfmspecialchars}}-cache"
+        }
+    }
+{{/elastic_cache}}

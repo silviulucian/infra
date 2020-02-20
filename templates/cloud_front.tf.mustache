@@ -1,0 +1,116 @@
+#
+# This file defines CloudFront distributions, including the ones needed for
+# orchestrations
+
+# https://www.terraform.io/docs/providers/aws/r/cloudfront_origin_access_identity.html
+resource "aws_cloudfront_origin_access_identity" "access-identity" {
+    comment = ""
+}
+
+{{#cloud_front}}
+    #
+    # Role and policy needed for CloudFront S3 access
+    #------------------------------------------------------------------------------
+
+    # https://www.terraform.io/docs/providers/aws/r/s3_bucket_policy.html
+    resource "aws_s3_bucket_policy" "{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}" {
+    bucket = aws_s3_bucket.{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}.id
+
+    policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "${aws_s3_bucket.{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}.arn}/*",
+                "${aws_s3_bucket.{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}.arn}"
+            ],
+            "Principal": {
+                "AWS": [
+                    "${aws_cloudfront_origin_access_identity.access-identity.iam_arn}"
+                ]
+            },
+            "Effect": "Allow"
+        }
+    ]
+}
+EOF
+    }
+
+    #
+    # CloudFront distributions
+    #------------------------------------------------------------------------------
+
+    # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html
+    resource "aws_cloudfront_distribution" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}" {
+        aliases             = ["{{joined_aliases}}"]
+        price_class         = "PriceClass_100" # PriceClass_100 | PriceClass_200 | PriceClass_All
+        default_root_object = "index.html"
+        enabled             = true
+        is_ipv6_enabled     = false
+
+        # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#viewer-certificate-arguments
+        viewer_certificate {
+            acm_certificate_arn = "{{acm_certificate_arn}}"
+            ssl_support_method  = "sni-only"
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#restrictions-arguments
+        restrictions {
+            geo_restriction {
+                restriction_type = "none" # none, whitelist, blacklist
+
+                # locations = ["US", "CA", "GB", "DE"]
+            }
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#logging-config-arguments
+        # logging_config {
+        #   include_cookies = false
+        #
+        #   bucket = ""
+        #   prefix = ""
+        # }
+
+        # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#origin-arguments
+        origin {
+            origin_id   = "{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}"
+            domain_name = aws_s3_bucket.{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}.bucket_domain_name
+
+            # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#s3-origin-config-arguments
+            s3_origin_config {
+                origin_access_identity = aws_cloudfront_origin_access_identity.access-identity.cloudfront_access_identity_path
+            }
+        }
+
+        # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#default-cache-behavior-arguments
+        default_cache_behavior {
+            target_origin_id = "{{#tfmspecialchars}}{{bucket}}{{/tfmspecialchars}}"
+            allowed_methods  = ["HEAD", "OPTIONS", "GET", "POST", "PUT", "PATCH", "DELETE"]
+            cached_methods   = ["HEAD", "GET"]
+
+            # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#forwarded_values
+            forwarded_values {
+                query_string = true
+                headers      = ["Origin"]
+
+                # https://www.terraform.io/docs/providers/aws/r/cloudfront_distribution.html#cookies-arguments
+                cookies {
+                    forward = "all" # all, none, whitelist
+
+                    # whitelisted_names = ["*"] # same as `all` above
+                }
+            }
+
+            min_ttl     = 0
+            default_ttl = 3600
+            max_ttl     = 86400
+            compress    = true
+
+            viewer_protocol_policy = "redirect-to-https" # allow-all | https-only | redirect-to-https
+        }
+    }
+{{/cloud_front}}
