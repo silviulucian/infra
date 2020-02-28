@@ -23,16 +23,19 @@
   "scripts": {
     "rebuild": [
       "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Tfenv::install",
       "silviulucian\\infra\\Terraform::fmt"
     ],
     "plan": [
       "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Tfenv::install",
       "silviulucian\\infra\\Terraform::fmt",
       "silviulucian\\infra\\Terraform::init",
       "silviulucian\\infra\\Terraform::plan"
     ],
     "apply": [
       "silviulucian\\infra\\TemplateBuilder::rebuildTemplates",
+      "silviulucian\\infra\\Tfenv::install",
       "silviulucian\\infra\\Terraform::fmt",
       "silviulucian\\infra\\Terraform::init",
       "silviulucian\\infra\\Terraform::apply"
