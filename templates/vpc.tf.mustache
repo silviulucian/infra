@@ -121,6 +121,28 @@ resource "aws_elasticache_subnet_group" "cache-subnet-grp" {
 #------------------------------------------------------------------------------
 
 #
+# This Security Group allows all outbound connections
+
+# https://www.terraform.io/docs/providers/aws/r/security_group.html
+resource "aws_security_group" "outbound-sg" {
+    vpc_id      = aws_vpc.vpc.id
+    name        = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-outbound-sg"
+    description = "Allow all traffic to the Internet"
+
+    egress {
+        from_port   = 0
+        to_port     = 0
+        protocol    = "-1"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    tags = {
+        Project = "{{project_name}}"
+        Name    = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-outbound-sg"
+    }
+}
+
+#
 # This Security Group allows HTTP/HTTPS connections from anywhere
 
 # https://www.terraform.io/docs/providers/aws/r/security_group.html
@@ -153,6 +175,35 @@ resource "aws_security_group" "web-sg" {
     tags = {
         Project = "{{project_name}}"
         Name    = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-web-sg"
+    }
+}
+
+#
+# This Security Group allows SSH connections from anywhere
+
+# https://www.terraform.io/docs/providers/aws/r/security_group.html
+resource "aws_security_group" "ssh-sg" {
+    vpc_id      = aws_vpc.vpc.id
+    name        = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ssh-sg"
+    description = "Allow incoming SSH traffic from the Internet"
+
+    ingress {
+        from_port   = 22
+        to_port     = 22
+        protocol    = "tcp"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    ingress {
+        from_port   = -1
+        to_port     = -1
+        protocol    = "icmp"
+        cidr_blocks = ["0.0.0.0/0"]
+    }
+
+    tags = {
+        Project = "{{project_name}}"
+        Name    = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ssh-sg"
     }
 }
 

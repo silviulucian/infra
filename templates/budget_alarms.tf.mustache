@@ -10,7 +10,7 @@
     resource "aws_budgets_budget" "budget-alarm-{{#tfmspecialchars}}{{.}}{{/tfmspecialchars}}" {
         name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-budget-alarm-{{#tfmspecialchars}}{{.}}{{/tfmspecialchars}}"
 
-        limit_amount      = "{{.}}"
+        limit_amount      = "{{.}}.0"
         limit_unit        = "{{budget_alarms.unit}}"
         budget_type       = "{{budget_alarms.type}}"
         time_unit         = "MONTHLY"

@@ -71,3 +71,10 @@ budget_alarms:
 #    acm_certificate_arn: "arn:aws:acm:?:?:certificate/?"
 #    repository: mycodecommitrepo
 #    branch: master
+#  - type: github-runner
+#    name: turbo-github-runner
+#    instances: 1
+#    instance_type: t3.nano
+#    spot_price: 0.0026
+#    url: https://github.com/?
+#    token: ?

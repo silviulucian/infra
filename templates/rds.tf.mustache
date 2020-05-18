@@ -5,7 +5,7 @@
 # Role and policy required for RDS Enhanced Monitoring
 #------------------------------------------------------------------------------
 
-# IAM Role Definition for RDS Enhanced Monitoring
+# IAM role for RDS Enhanced Monitoring
 # https://www.terraform.io/docs/providers/aws/r/iam_role.html
 resource "aws_iam_role" "rds-monitoring-role" {
     name = "{{project_name}}-role-rds-monitor"
@@ -29,7 +29,7 @@ resource "aws_iam_role" "rds-monitoring-role" {
 EOF
 }
 
-# Attach RDS Enhanced Monitoring role policy(ies)
+# Attach RDS Enhanced Monitoring role policy
 # https://www.terraform.io/docs/providers/aws/r/iam_role_policy_attachment.html
 resource "aws_iam_role_policy_attachment" "rds-monitoring-role" {
     role       = aws_iam_role.rds-monitoring-role.id

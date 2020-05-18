@@ -1,0 +1,329 @@
+#
+# This file defines EC2 Auto Scaling Groups
+
+#
+# Roles and policies required for EC2 Auto Scaling
+#------------------------------------------------------------------------------
+
+# IAM role for EC2 CloudWatch monitoring
+# https://www.terraform.io/docs/providers/aws/r/iam_role.html
+resource "aws_iam_role" "ec2-monitoring-role" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ec2-monitoring-role"
+
+    assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+# Attach EC2 CloudWatch monitoring role policy
+# https://www.terraform.io/docs/providers/aws/r/iam_role_policy.html
+resource "aws_iam_role_policy" "ec2-monitoring-policy" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ec2-monitoring-policy"
+    role = aws_iam_role.ec2-monitoring-role.id
+
+    policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EC2InstanceManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics",
+        "cloudwatch:PutMetricData",
+        "ec2:DescribeTags"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::hostymchostface-files/*"
+    }
+  ]
+}
+EOF
+}
+
+# IAM role for EC2 Auto Scaling
+# https://www.terraform.io/docs/providers/aws/r/iam_role.html
+resource "aws_iam_role" "ec2-autoscaling-role" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ec2-autoscaling-role"
+
+    assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "sts:AssumeRole"
+      ],
+      "Principal": {
+        "Service": "autoscaling.amazonaws.com"
+      },
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
+}
+
+# Attach EC2 autoscaling role policy
+# https://www.terraform.io/docs/providers/aws/r/iam_role_policy.html
+resource "aws_iam_role_policy" "ec2-autoscaling-policy" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-ec2-autoscaling-policy"
+    role = aws_iam_role.ec2-autoscaling-role.id
+
+    policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EC2InstanceManagement",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AttachClassicLinkVpc",
+        "ec2:CancelSpotInstanceRequests",
+        "ec2:CreateFleet",
+        "ec2:CreateTags",
+        "ec2:DeleteTags",
+        "ec2:Describe*",
+        "ec2:DetachClassicLinkVpc",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:RequestSpotInstances",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EC2InstanceProfileManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "iam:PassedToService": "ec2.amazonaws.com*"
+        }
+      }
+    },
+    {
+      "Sid": "EC2SpotManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": "spot.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ELBManagement",
+      "Effect": "Allow",
+      "Action": [
+        "elasticloadbalancing:Register*",
+        "elasticloadbalancing:Deregister*",
+        "elasticloadbalancing:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CWManagement",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:DescribeAlarms",
+        "cloudwatch:PutMetricAlarm"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SNSManagement",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+}
+
+#
+# Resources needed for EC2 instances
+#------------------------------------------------------------------------------
+
+# https://www.terraform.io/docs/providers/aws/r/iam_instance_profile.html
+resource "aws_iam_instance_profile" "ec2-asg-instance-profile" {
+    name = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-instance-profile"
+    role = aws_iam_role.ec2-monitoring-role.name
+}
+
+# https://www.terraform.io/docs/providers/aws/r/key_pair.html
+resource "aws_key_pair" "ec2-asg-keypair" {
+  key_name   = "{{#tfmspecialchars}}{{project_name}}{{/tfmspecialchars}}-keypair"
+  public_key = file("~/.ssh/id_rsa.pub")
+}
+
+data "aws_ami" "ec2-asg-image" {
+    most_recent = true
+
+    # ECS optimized AMIs:
+    # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/al2ami.html
+
+    # EBS optimized AMIs:
+    # https://aws.amazon.com/amazon-linux-2/release-notes/
+
+    filter {
+        name   = "name"
+        values = ["amzn2-ami-hvm*"]
+    }
+
+    filter {
+        name   = "owner-alias"
+        values = ["amazon"]
+    }
+
+    filter {
+        name   = "virtualization-type"
+        values = ["hvm"]
+    }
+
+    owners = ["amazon"]
+}
+
+output "outout_aws_ami" {
+    value = "Using AMI: ${data.aws_ami.ec2-asg-image.id}"
+}
+
+#
+# Launch configuration
+#------------------------------------------------------------------------------
+
+{{#ec2_asg}}
+    # https://www.terraform.io/docs/providers/aws/d/launch_configuration.html
+    resource "aws_launch_configuration" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-launch-configuration" {
+        # Launch Configurations cannot be updated after creation with the AWS API.
+        # In order to update a Launch Configuration, Terraform will destroy the
+        # existing resource and create a replacement.
+
+        # We're only setting the name_prefix here, Terraform will add a random
+        # string at the end to keep it unique.
+        name_prefix = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-"
+
+        iam_instance_profile = aws_iam_instance_profile.ec2-asg-instance-profile.id
+
+        security_groups = [aws_security_group.outbound-sg.id, aws_security_group.web-sg.id, aws_security_group.ssh-sg.id]
+        key_name        = aws_key_pair.ec2-asg-keypair.key_name
+        image_id        = data.aws_ami.ec2-asg-image.id
+        instance_type   = "{{instance_type}}"
+        spot_price      = "{{spot_price}}"
+
+        # User data log available on the instance in `/var/log/cloud-init-output.log`
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
+        user_data = <<EOF
+#!/bin/bash
+mkdir ~/AmazonCloudWatchAgent && cd ~/AmazonCloudWatchAgent
+wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/linux/amd64/latest/AmazonCloudWatchAgent.zip
+unzip -qq AmazonCloudWatchAgent.zip
+./install.sh
+
+wget -q https://raw.githubusercontent.com/silviulucian/infra/master/amazon-cloudwatch-agent.json
+cp amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/
+
+{{user_data}}
+EOF
+
+        # Enable detailed monitoring as explained here:
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html
+        enable_monitoring = true
+
+        lifecycle {
+            create_before_destroy = true
+        }
+    }
+
+    # https://www.terraform.io/docs/providers/aws/r/autoscaling_group.html#service_linked_role_arn
+    resource "aws_autoscaling_group" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-asg" {
+        # Force a redeployment when launch configuration changes -- this will reset
+        # the desired capacity if it was changed due to autoscaling events.
+        name = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-asg"
+
+        launch_configuration = aws_launch_configuration.{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-launch-configuration.id
+        vpc_zone_identifier  = aws_subnet.pub-subnet.*.id
+
+        min_size     = {{max_size}}
+        max_size     = {{min_size}}
+        force_delete = true
+
+        health_check_type         = "EC2" # EC2 | ELB
+        health_check_grace_period = 30    # (Optional, Default: 300) Time (in seconds) after instance comes into service before checking health.
+
+        lifecycle {
+            create_before_destroy = true
+        }
+    }
+
+    # https://www.terraform.io/docs/providers/aws/r/autoscaling_policy.html
+    resource "aws_autoscaling_policy" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-scale-up-policy" {
+        name = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-scale-up-policy"
+
+        autoscaling_group_name = aws_autoscaling_group.{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-asg.name
+
+        scaling_adjustment = 1
+        adjustment_type    = "ChangeInCapacity"
+        cooldown           = 60
+
+        lifecycle {
+            create_before_destroy = true
+        }
+    }
+
+    # https://www.terraform.io/docs/providers/aws/r/autoscaling_policy.html
+    resource "aws_autoscaling_policy" "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-scale-down-policy" {
+        name = "{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-scale-down-policy"
+
+        autoscaling_group_name = aws_autoscaling_group.{{#tfmspecialchars}}{{name}}{{/tfmspecialchars}}-asg.name
+
+        scaling_adjustment = -1
+        adjustment_type    = "ChangeInCapacity"
+        cooldown           = 60
+
+        lifecycle {
+            create_before_destroy = true
+        }
+    }
+{{/ec2_asg}}

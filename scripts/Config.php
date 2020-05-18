@@ -16,7 +16,10 @@ class Config
             // Configure each service required for orchestrations
             if (isset (self::$config['orchestrations']) && is_array(self::$config['orchestrations'])) {
                 foreach (self::$config['orchestrations'] as $orchestration) {
+                    //
                     // The static-website orchestration
+                    //-----------------------------------------------------------------------------
+
                     if ('static-website' === $orchestration['type']) {
                         // CloudFront
                         if (! isset (self::$config['cloud_front']) || ! is_array(self::$config['cloud_front'])) {
@@ -78,6 +81,34 @@ class Config
                         self::$config['s3'][] = [
                             'name' => $orchestration['name'],
                             'acl'  => 'private',
+                        ];
+                    }
+
+                    //
+                    // The GitHub Actions runner orchestration
+                    //-----------------------------------------------------------------------------
+
+                    if ('github-runner' === $orchestration['type']) {
+                        if (! isset (self::$config['ec2_asg']) || ! is_array(self::$config['ec2_asg'])) {
+                            self::$config['ec2_asg'] = [];
+                        }
+
+                        self::$config['ec2_asg'][] = [
+                            'name'          => $orchestration['name'],
+                            'max_size'      => $orchestration['instances'],
+                            'min_size'      => $orchestration['instances'],
+                            'instance_type' => $orchestration['instance_type'],
+                            'spot_price'    => $orchestration['spot_price'],
+                            'user_data'     => implode("\n", [
+                                'mkdir /home/ec2-user/actions-runner ;',
+                                'cd /home/ec2-user/actions-runner ;',
+                                'wget -q https://github.com/actions/runner/releases/download/v2.169.0/actions-runner-linux-x64-2.169.0.tar.gz ;',
+                                'tar xzf ./actions-runner-linux-x64-2.169.0.tar.gz ;',
+                                'chown -R ec2-user:ec2-user /home/ec2-user/actions-runner ;',
+                                "sudo su -- ec2-user ./config.sh --url {$orchestration['url']} --token {$orchestration['token']} --unattended ;",
+                                './svc.sh install ec2-user ;',
+                                './svc.sh start ;',
+                            ]),
                         ];
                     }
                 }
