@@ -243,14 +243,46 @@ output "outout_aws_ami" {
         # User data log available on the instance in `/var/log/cloud-init-output.log`
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
         user_data = <<EOF
-#!/bin/bash
-wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-dpkg -i amazon-cloudwatch-agent.deb
+#!/usr/bin/env bash
 
-wget -q https://raw.githubusercontent.com/silviulucian/infra/master/amazon-cloudwatch-agent.json
-cp amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/
+set -eux;
 
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+apt update -yq ;
+apt install -yq \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    software-properties-common \
+    unzip ;
+
+# Setup CloudWatch Agent
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb ;
+dpkg -i amazon-cloudwatch-agent.deb ;
+
+wget -q https://raw.githubusercontent.com/silviulucian/infra/master/amazon-cloudwatch-agent.json ;
+cp amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/ ;
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s ;
+systemctl status amazon-cloudwatch-agent ;
+
+# Setup Docker
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - ;
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable" ;
+apt update -yq ;
+apt-cache policy docker-ce ;
+apt install -yq docker-ce ;
+systemctl status docker ;
+
+# By default, the docker command can only be run the root user or by a user in the docker group
+usermod -aG docker ubuntu ;
+
+# Setup apt-fast (needed by https://github.com/shivammathur/setup-php)
+add-apt-repository ppa:apt-fast/stable
+apt-get -yq update
+DEBIAN_FRONTEND=noninteractive apt-get -yq install apt-fast
+
+# Add repository for latest PHP packages
+add-apt-repository ppa:ondrej/php
 
 {{user_data}}
 EOF

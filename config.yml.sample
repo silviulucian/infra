@@ -65,16 +65,16 @@ budget_alarms:
 #      - 1.0.0.1
 
 #orchestrations:
-#  - type: static-website
-#    zone: mydomain.com
-#    name: mysubdomain.mahdomain.com
-#    acm_certificate_arn: "arn:aws:acm:?:?:certificate/?"
-#    repository: mycodecommitrepo
-#    branch: master
-#  - type: github-runner
-#    name: turbo-github-runner
-#    instances: 1
-#    instance_type: t3.nano
-#    spot_price: 0.0026
-#    url: https://github.com/?
-#    token: ?
+# - type: static-website
+#   zone: mydomain.com
+#   name: mysubdomain.mahdomain.com
+#   acm_certificate_arn: "arn:aws:acm:?:?:certificate/?"
+#   repository: mycodecommitrepo
+#   branch: master
+# - type: github-runner
+#   name: my-github-runners
+#   instances: 3
+#   instance_type: t3.medium
+#   spot_price: 0.015
+#   url: https://github.com/?
+#   token: ?
