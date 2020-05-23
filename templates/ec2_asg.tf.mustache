@@ -65,7 +65,7 @@ resource "aws_iam_role_policy" "ec2-monitoring-policy" {
       "Action": [
         "s3:GetObject"
       ],
-      "Resource": "arn:aws:s3:::hostymchostface-files/*"
+      "Resource": "arn:aws:s3:::{{artifacts_bucket}}/*"
     }
   ]
 }
@@ -200,29 +200,17 @@ resource "aws_key_pair" "ec2-asg-keypair" {
 
 data "aws_ami" "ec2-asg-image" {
     most_recent = true
-
-    # ECS optimized AMIs:
-    # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/al2ami.html
-
-    # EBS optimized AMIs:
-    # https://aws.amazon.com/amazon-linux-2/release-notes/
+    owners = ["099720109477"]
 
     filter {
         name   = "name"
-        values = ["amzn2-ami-hvm*"]
-    }
-
-    filter {
-        name   = "owner-alias"
-        values = ["amazon"]
+        values = ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"]
     }
 
     filter {
         name   = "virtualization-type"
         values = ["hvm"]
     }
-
-    owners = ["amazon"]
 }
 
 output "outout_aws_ami" {
@@ -256,13 +244,13 @@ output "outout_aws_ami" {
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html
         user_data = <<EOF
 #!/bin/bash
-mkdir ~/AmazonCloudWatchAgent && cd ~/AmazonCloudWatchAgent
-wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/linux/amd64/latest/AmazonCloudWatchAgent.zip
-unzip -qq AmazonCloudWatchAgent.zip
-./install.sh
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+dpkg -i amazon-cloudwatch-agent.deb
 
 wget -q https://raw.githubusercontent.com/silviulucian/infra/master/amazon-cloudwatch-agent.json
 cp amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 {{user_data}}
 EOF
